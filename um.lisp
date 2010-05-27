@@ -193,6 +193,8 @@ forthwith."
           (c 0)
           (op 0))
       (loop
+        (unless (power um)
+          (return))
         (incf (finger um))
         (setf platter (aref (aref (arrays um) 0) (finger um))
               op (ldb (byte 4 28) platter))
