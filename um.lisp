@@ -67,8 +67,9 @@ the value in register C, modulo 2^32."
 (defmethod op4 ((um um-32) a b c)
   "The register A receives the value in register B times
 the value in register C, modulo 2^32."
-  (set-register um a (logand #xffffffff(* (get-register um b)
-                                          (get-register um c)))))
+  (set-register um a (logand #xffffffff
+                             (* (get-register um b)
+                                (get-register um c)))))
 
 (defmethod op5 ((um um-32) a b c)
   "The register A receives the value in register b
@@ -104,13 +105,14 @@ active allocated array, is placed in the B register."
   (set-register um b
                 (let ((arrs-length (length (arrays um)))
                       (new-arr (make-array (get-register um c)
-                                           :initial-element 0)))
+                                           :initial-element 0
+                                           :element-type '(unsigned-byte 32))))
                   (do* ((i 0 (1+ i))
                         (arr (aref (arrays um) i) (aref (arrays um) i)))
                       (nil)
                     (cond ((> i arrs-length)
-                           (vector-push-extend new-arr (arrays um)))
-                          ((eq arr nil) (setf arr new-arr) i))))))
+                           (return (vector-push-extend new-arr (arrays um))))
+                          ((eq arr nil) (setf arr new-arr) (return i)))))))
 
 (defmethod op9 ((um um-32) a b c)
   "The array identified by the register C is abandoned.
@@ -137,12 +139,12 @@ If the end of input has been signaled, then the
 register C is endowed with a uniform value pattern
 where every place is pregnant with the 1 bit."
   (declare (ignore a b))
-  (let ((in (char-code (read-char *standard-input* nil 'eof))))
+  (let ((in (read-char *standard-input* nil 'eof)))
     (if (eq in 'eof)
         (set-register um c #xffffffff)
-        (if (> in 255)
-            (error "Input has too big value ~d~%" in)
-            (set-register um c in)))))
+        (if (> (char-code in) 255)
+            (error "Input has too big value ~d~%" (char-code in))
+            (set-register um c (char-code in))))))
 
 (defmethod op12 ((um um-32) a b c)
   "The array identified by the B register is duplicated
@@ -158,7 +160,8 @@ loading, and shall be handled with the utmost
 velocity."
   (declare (ignore a))
   (let ((copy (copy-seq (aref (arrays um) (get-register um b)))))
-    (setf (aref (arrays um) 0) copy)
+    (when (plusp (get-register um b))
+      (setf (aref (arrays um) 0) copy))
     (setf (finger um) (get-register um c))))
 
 (defmethod op13 ((um um-32) a val)
@@ -196,8 +199,7 @@ forthwith."
         (setf platter (aref (aref (arrays um) 0) (finger um))
               op (ldb (byte 4 28) platter))
         (cond ((= op 13)
-               (funcall (nth op ops)
-                        um
+               (funcall (nth op ops) um
                         (ldb (byte 3 25) platter)
                         (ldb (byte 25 0) platter)))
               (t (setf a (ldb (byte 3 6) platter)
