@@ -2,9 +2,6 @@
 ;;;; from icfp-2006.
 ;;;; Author: Nedokushev Michael <grouzen.hexy@gmail.com>
 
-(defpackage #:um-32
-    (:use :cl))
-
 (in-package :um-32)
 
 ;;; Physical organization of the machine.
@@ -113,7 +110,7 @@ active allocated array, is placed in the B register."
                       (nil)
                     (cond ((> i arrs-length)
                            (vector-push-extend new-arr (arrays um)))
-                          ((eq arr nil) (setf arr new-arr)))))))
+                          ((eq arr nil) (setf arr new-arr) i))))))
 
 (defmethod op9 ((um um-32) a b c)
   "The array identified by the register C is abandoned.
@@ -170,7 +167,7 @@ forthwith."
   (set-register um a val))
 
 (defun um-run (codex-file)
-  (let ((um (make-instance 'um))
+  (let ((um (make-instance 'um-32))
         scroll end)
     (with-open-file (codex (merge-pathnames codex-file)
                            :if-does-not-exist :error
@@ -200,9 +197,10 @@ forthwith."
               op (ldb (byte 4 28) platter))
         (cond ((= op 13)
                (funcall (nth op ops)
+                        um
                         (ldb (byte 3 25) platter)
                         (ldb (byte 25 0) platter)))
               (t (setf a (ldb (byte 3 6) platter)
                        b (ldb (byte 3 3) platter)
                        c (ldb (byte 3 0) platter))
-               (funcall (nth op ops) a b c)))))))
+               (funcall (nth op ops) um a b c)))))))
